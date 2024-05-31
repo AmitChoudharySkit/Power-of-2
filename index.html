@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>To the Power of Math!</title>
+    
+    <style>
+        h1 {
+            color: #FFFFFF;
+            font-family: system-ui;
+            margin-left: 20px;
+        }
+        body {
+            background-color: #222629;
+        }
+        label {
+            color: #86C232;
+            font-family: system-ui;
+            font-size: 20px;
+            margin-left: 20px;
+            margin-top: 20px;
+        }
+        button {
+            background-color: #86C232;
+            border-color: #86C232;
+            color: #FFFFFF;
+            font-family: system-ui;
+            font-size: 20px;
+            font-weight: bold;
+            margin-left: 30px;
+            margin-top: 20px;
+            width: 140px;
+        }
+        input {
+            color: #222629;
+            font-family: system-ui;
+            font-size: 20px;
+            margin-left: 10px;
+            margin-top: 20px;
+            width: 100px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@5.0.3/dist/amazon-cognito-identity.min.js"></script>
+    <script>
+        var poolData = {
+            UserPoolId: "eu-north-1_70vbl3moQ",
+            ClientId: "6tgd0p4mdd8eb0sl826cm135cu"
+        };
+        var userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+
+        var callAPI = (base, exponent) => {
+            var cognitoUser = userPool.getCurrentUser();
+
+            if (cognitoUser != null) {
+                cognitoUser.getSession((err, session) => {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+
+                    var myHeaders = new Headers();
+                    myHeaders.append("Content-Type", "application/json");
+                    myHeaders.append("Authorization", session.getIdToken().getJwtToken());
+
+                    var raw = JSON.stringify({"base": base, "exponent": exponent});
+                    
+                    var requestOptions = {
+                        method: 'POST',
+                        headers: myHeaders,
+                        body: raw,
+                        redirect: 'follow'
+                    };
+
+                    fetch("https://1sopzjsdfa.execute-api.eu-north-1.amazonaws.com/Assignment-3-stage", requestOptions)
+                    .then(response => response.text())
+                    .then(result => alert(JSON.parse(result).body))
+                    .catch(error => console.log('error', error));
+                });
+            } else {
+                alert('User is not logged in');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>TO THE POWER OF MATH!</h1>
+    <form>
+        <label>Base number:</label>
+        <input type="text" id="base">
+        <label>...to the power of:</label>
+        <input type="text" id="exponent">
+
+        <button type="button" onclick="callAPI(document.getElementById('base').value,document.getElementById('exponent').value)">CALCULATE</button>
+    </form>
+    <section class="form-wrap">
+        <h1>Register</h1>
+        <form id="registrationForm">
+            <input type="email" id="emailInputRegister" placeholder="Email" pattern=".*" required>
+            <input type="password" id="passwordInputRegister" placeholder="Password" pattern=".*" required>
+            <input type="password" id="password2InputRegister" placeholder="Confirm Password" pattern=".*" required>
+
+            <input type="submit" value="Let's Ryde">
+        </form>
+    </section>
+    <section class="form-wrap">
+        <h1>Sign In</h1>
+        <form id="loginForm">
+            <input type="email" id="emailInputLogin" placeholder="Email" required>
+            <input type="password" id="passwordInputLogin" placeholder="Password" required>
+            <input type="submit" value="Login">
+        </form>
+    </section>
+    <section class="form-wrap">
+        <h1>Confirm Registration</h1>
+        <form id="confirmationForm">
+            <input type="email" id="emailInputConfirm" placeholder="Email" required>
+            <input type="text" id="confirmationCodeInput" placeholder="Confirmation Code" required>
+            <input type="submit" value="Confirm">
+        </form>
+    </section>
+
+    <script>
+        document.getElementById('registrationForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            var email = document.getElementById('emailInputRegister').value;
+            var password = document.getElementById('passwordInputRegister').value;
+            var password2 = document.getElementById('password2InputRegister').value;
+
+            if (password !== password2) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            var attributeList = [];
+            var dataEmail = {
+                Name: 'email',
+                Value: email
+            };
+            var attributeEmail = new AmazonCognitoIdentity.CognitoUserAttribute(dataEmail);
+            attributeList.push(attributeEmail);
+
+            userPool.signUp(email, password, attributeList, null, function(err, result) {
+                if (err) {
+                    alert(err.message || JSON.stringify(err));
+                    return;
+                }
+                var cognitoUser = result.user;
+                alert('User registration successful. Please check your email for verification link.');
+            });
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            var email = document.getElementById('emailInputLogin').value;
+            var password = document.getElementById('passwordInputLogin').value;
+
+            var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+                Username: email,
+                Password: password,
+            });
+
+            var userData = {
+                Username: email,
+                Pool: userPool
+            };
+
+            var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: function(result) {
+                    var accessToken = result.getAccessToken().getJwtToken();
+                    alert('Login successful');
+                },
+                onFailure: function(err) {
+                    alert(err.message || JSON.stringify(err));
+                },
+            });
+        });
+
+        document.getElementById('confirmationForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            var email = document.getElementById('emailInputConfirm').value;
+            var confirmationCode = document.getElementById('confirmationCodeInput').value;
+
+            var userData = {
+                Username: email,
+                Pool: userPool
+            };
+
+            var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+            cognitoUser.confirmRegistration(confirmationCode, true, function(err, result) {
+                if (err) {
+                    alert(err.message || JSON.stringify(err));
+                    return;
+                }
+                alert('Confirmation successful. You can now log in.');
+            });
+        });
+    </script>
+</body>
+</html>
